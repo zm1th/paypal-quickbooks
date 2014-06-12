@@ -130,7 +130,7 @@ end
 f = next_file
 
 all_transactions.each do |invoice_number, transactions|
-  next if invoice_number.to_i <= 180 # start at 181
+  # next if invoice_number.to_i <= 180    # start at 181, since the last manually entered trans was 180
   count += 1
   # here's the chunked files magic
   if count % slice_size == 0
