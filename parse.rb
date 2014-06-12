@@ -102,11 +102,23 @@ class Transaction
 end
 
 
-# here's where we do the actual work
+# helpers for chunking files.
+def filename(count = 0)
+  "_paypal_#{count.to_s.rjust(4, '0')}.iif"
+end
+    
+def next_file(count = 0)
+  File.open(filename(count), 'w')
+end
 
+slice_size = 5000 # change slice size to create chunked files. Right now this will export one big file.
+count = 0 # running count for number of transactions already handled.
+
+
+# here's where we do the actual work
 all_transactions = {}
 
-# group transactions by invoice number
+# group transactions from CSV file by invoice number
 CSV.foreach(paypal_file, :headers => true) do |row|
   if curr = Transaction.from_csv_row(row)
     all_transactions[curr.invoice] ||= []
@@ -115,10 +127,7 @@ CSV.foreach(paypal_file, :headers => true) do |row|
 end
 
 # open first file for writing
-f = File.open('_paypal_0000.iif', 'w')
-
-count = 0
-slice_size = 5000 # change slice size to create chunked files. Right now this will export one big file.
+f = next_file
 
 all_transactions.each do |invoice_number, transactions|
   next if invoice_number.to_i <= 180 # start at 181
@@ -126,13 +135,12 @@ all_transactions.each do |invoice_number, transactions|
   # here's the chunked files magic
   if count % slice_size == 0
     f.close # clean up previous file
-    f = File.open("_paypal_#{count.to_s.rjust(4, '0')}.iif", 'w') # open next chunk
-    # f = File.open("_paypal_full.iif", 'w')
+    f = next_file(count)
   end    
-  foobers = Transaction.iif(transactions)
+  iif_data = Transaction.iif(transactions)
 
   # write the current invoice to file, with a SPL record for each transaction
-  f.puts foobers.output
+  f.puts iif_data.output
 end
 
 # clean up
